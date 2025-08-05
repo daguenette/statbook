@@ -4,4 +4,3 @@ pub(crate) fn to_dash_case(s: &str) -> String {
         .join("-")
         .to_lowercase()
 }
-

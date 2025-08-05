@@ -31,4 +31,3 @@ pub async fn get_player_by_name(
 
     Ok(Some(summary))
 }
-

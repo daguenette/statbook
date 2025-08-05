@@ -48,4 +48,3 @@ impl From<serde_json::Error> for StatbookError {
 }
 
 pub type Result<T> = std::result::Result<T, StatbookError>;
-
