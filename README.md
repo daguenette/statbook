@@ -1,9 +1,7 @@
 # Statbook
 
-[![CI](https://github.com/yourusername/nfl-stats-funtimes/workflows/CI/badge.svg)](https://github.com/yourusername/nfl-stats-funtimes/actions)
-[![codecov](https://codecov.io/gh/yourusername/nfl-stats-funtimes/branch/main/graph/badge.svg)](https://codecov.io/gh/yourusername/nfl-stats-funtimes)
+[![CI](https://github.com/daguenette/statbook/workflows/CI/badge.svg)](https://github.com/yourusername/nfl-stats-funtimes/actions)
 [![Crates.io](https://img.shields.io/crates/v/statbook.svg)](https://crates.io/crates/statbook)
-[![Documentation](https://docs.rs/statbook/badge.svg)](https://docs.rs/statbook)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/yourusername/nfl-stats-funtimes#license)
 [![Rust Version](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
 
@@ -150,4 +148,3 @@ Licensed under either of
 - MIT license
 
 at your option.
-
