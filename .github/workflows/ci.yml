@@ -19,7 +19,6 @@ jobs:
           - stable
           - beta
           - nightly
-          - 1.81.0  # MSRV
     steps:
     - uses: actions/checkout@v4
     - name: Install Rust
