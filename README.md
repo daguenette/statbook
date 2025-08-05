@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/daguenette/statbook/workflows/CI/badge.svg)](https://github.com/daguenette/statbook/actions)
 [![Crates.io](https://img.shields.io/crates/v/statbook.svg)](https://crates.io/crates/statbook)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/yourusername/nfl-stats-funtimes#license)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/daguenette/statbook#license)
 [![Rust Version](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
 
 A Rust library for accessing sports statistics and data.
