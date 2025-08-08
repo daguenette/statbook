@@ -1,6 +1,6 @@
 use crate::{
     error::{Result, StatbookError},
-    models::{Article, NewsQuery, PlayerStats},
+    models::{Article, NewsQuery, PlayerNews, PlayerStats},
     providers::{NewsProvider, StatsProvider},
 };
 use async_trait::async_trait;
@@ -34,6 +34,7 @@ impl MockStatsProvider {
                 injury: "".to_string(),
                 rookie: false,
                 games_played: 16,
+                season: "2024-regular".to_string(),
             },
         );
 
@@ -48,6 +49,7 @@ impl MockStatsProvider {
                 injury: "".to_string(),
                 rookie: false,
                 games_played: 17,
+                season: "2024-regular".to_string(),
             },
         );
 
@@ -74,7 +76,7 @@ impl MockStatsProvider {
 
 #[async_trait]
 impl StatsProvider for MockStatsProvider {
-    async fn fetch_player_stats(&self, name: &str) -> Result<PlayerStats> {
+    async fn fetch_player_stats(&self, name: &str, season: &str) -> Result<PlayerStats> {
         if let Some(_error) = self.errors.get(name) {
             return Err(StatbookError::PlayerNotFound {
                 name: name.to_string(),
@@ -82,7 +84,11 @@ impl StatsProvider for MockStatsProvider {
         }
 
         match self.responses.get(name) {
-            Some(stats) => Ok(stats.clone()),
+            Some(stats) => {
+                let mut stats_with_season = stats.clone();
+                stats_with_season.season = season.to_string();
+                Ok(stats_with_season)
+            }
             None => Err(StatbookError::PlayerNotFound {
                 name: name.to_string(),
             }),
@@ -150,7 +156,7 @@ impl MockNewsProvider {
 
 #[async_trait]
 impl NewsProvider for MockNewsProvider {
-    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<Vec<Article>> {
+    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<PlayerNews> {
         if let Some(_error) = self.errors.get(&query.player_name) {
             return Err(StatbookError::NewsApi {
                 status: 500,
@@ -159,8 +165,8 @@ impl NewsProvider for MockNewsProvider {
         }
 
         match self.responses.get(&query.player_name) {
-            Some(articles) => Ok(articles.clone()),
-            None => Ok(vec![]), // Return empty vec for unknown players
+            Some(articles) => Ok(PlayerNews::new(articles.clone(), query.clone())),
+            None => Ok(PlayerNews::new(vec![], query.clone())), // Return empty PlayerNews for unknown players
         }
     }
 }

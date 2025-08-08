@@ -79,3 +79,54 @@ impl NewsQuery {
         self
     }
 }
+/// Collection of news articles for a player.
+///
+/// This struct wraps a collection of news articles with metadata
+/// about the query used to fetch them, providing a more structured
+/// and extensible way to return news data.
+
+#[derive(Debug, Clone)]
+pub struct PlayerNews {
+    /// Collection of news articles
+    pub articles: Vec<Article>,
+    /// Query used to fetch these articles (for debugging/logging)
+    pub query: NewsQuery,
+    /// Total articles available (if API provides this)
+    pub total_count: Option<u32>,
+}
+
+impl PlayerNews {
+    /// Creates a new PlayerNews instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `articles` - Vector of news articles
+    /// * `query` - The query used to fetch these articles
+    pub fn new(articles: Vec<Article>, query: NewsQuery) -> Self {
+        Self {
+            articles,
+            query,
+            total_count: None,
+        }
+    }
+
+    /// Sets the total count of articles available.
+    ///
+    /// # Arguments
+    ///
+    /// * `count` - Total number of articles available from the API
+    pub fn with_total_count(mut self, count: u32) -> Self {
+        self.total_count = Some(count);
+        self
+    }
+
+    /// Returns the number of articles in this collection.
+    pub fn len(&self) -> usize {
+        self.articles.len()
+    }
+
+    /// Returns true if there are no articles in this collection.
+    pub fn is_empty(&self) -> bool {
+        self.articles.is_empty()
+    }
+}

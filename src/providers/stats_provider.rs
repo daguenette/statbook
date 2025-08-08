@@ -33,7 +33,7 @@ pub trait StatsProvider: Send + Sync {
     /// - Network request fails
     /// - API returns an error response
     /// - Response parsing fails
-    async fn fetch_player_stats(&self, name: &str) -> Result<PlayerStats>;
+    async fn fetch_player_stats(&self, name: &str, season: &str) -> Result<PlayerStats>;
 }
 
 /// MySports API implementation of the `StatsProvider` trait.
@@ -67,13 +67,13 @@ impl MySportsStatsProvider {
 
 #[async_trait]
 impl StatsProvider for MySportsStatsProvider {
-    async fn fetch_player_stats(&self, name: &str) -> Result<PlayerStats> {
+    async fn fetch_player_stats(&self, name: &str, season: &str) -> Result<PlayerStats> {
         let credentials = format!("{}:{}", self.config.stats_api_key, STATBOOK_PASSWORD);
         let encoded_credentials = general_purpose::STANDARD.encode(&credentials);
         let auth_header = format!("Basic {encoded_credentials}");
         let url = format!(
-            "{}/pull/nfl/latest/player_stats_totals.json",
-            self.config.stats_base_url
+            "{}/pull/nfl/{season}/player_stats_totals.json",
+            self.config.stats_base_url,
         );
 
         let response = self
@@ -118,6 +118,7 @@ impl StatsProvider for MySportsStatsProvider {
             injury: player_info.injury.clone().unwrap_or_default(),
             rookie: player_info.rookie.unwrap_or(false),
             games_played: player.statistics.games_played.unwrap_or(0),
+            season: season.to_string(),
         })
     }
 }

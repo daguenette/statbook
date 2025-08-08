@@ -1,7 +1,7 @@
 use crate::{
     config::StatbookConfig,
     error::{Result, StatbookError},
-    models::{parsers::news_parser::NewsResponse, Article, NewsQuery},
+    models::{parsers::news_parser::NewsResponse, Article, NewsQuery, PlayerNews},
 };
 use async_trait::async_trait;
 
@@ -20,7 +20,7 @@ pub trait NewsProvider: Send + Sync {
     ///
     /// # Returns
     ///
-    /// Returns `Ok(Vec<Article>)` containing matching news articles,
+    /// Returns `Ok(PlayerNews)` containing matching news articles,
     /// or an error if the request fails.
     ///
     /// # Errors
@@ -29,7 +29,7 @@ pub trait NewsProvider: Send + Sync {
     /// - Network request fails
     /// - API returns an error response (e.g., invalid API key, rate limit)
     /// - Response parsing fails
-    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<Vec<Article>>;
+    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<PlayerNews>;
 }
 
 /// NewsAPI implementation of the `NewsProvider` trait.
@@ -69,7 +69,7 @@ impl NewsApiProvider {
 
 #[async_trait]
 impl NewsProvider for NewsApiProvider {
-    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<Vec<Article>> {
+    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<PlayerNews> {
         let url = format!("{}/everything", self.config.news_base_url);
 
         // Build query parameters, only including 'from' if it's not empty
@@ -116,6 +116,7 @@ impl NewsProvider for NewsApiProvider {
             })
             .collect();
 
-        Ok(articles)
+        Ok(PlayerNews::new(articles, query.clone())
+            .with_total_count(news_data.total_results as u32))
     }
 }

@@ -4,11 +4,11 @@
 [![Crates.io](https://img.shields.io/crates/v/statbook.svg)](https://crates.io/crates/statbook)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](https://github.com/daguenette/statbook#license)
 [![Rust Version](https://img.shields.io/badge/rust-1.70+-blue.svg)](https://www.rust-lang.org)
-
 (Early in development)
 <!--toc:start-->
 - [Statbook](#statbook)
   - [Features](#features)
+  - [Season Support](#season-support)
   - [Setup](#setup)
     - [1. Get API Credentials](#1-get-api-credentials)
     - [2. Add to Cargo.toml](#2-add-to-cargotoml)
@@ -21,9 +21,8 @@
   - [API Reference](#api-reference)
     - [Core Functions](#core-functions)
     - [Data Types](#data-types)
-    - [Fetch Strategies](#fetch-strategies)
   - [Error Handling](#error-handling)
-    - [Partial Failure Handling](#partial-failure-handling)
+    - [Graceful Failure Handling](#graceful-failure-handling)
   - [Testing](#testing)
     - [Unit Testing with Mock Providers](#unit-testing-with-mock-providers)
     - [Custom Mock Data](#custom-mock-data)
@@ -31,7 +30,6 @@
     - [Running Tests](#running-tests)
   - [Advanced Usage](#advanced-usage)
     - [Custom Providers](#custom-providers)
-  - [Features](#features)
   - [Future Plans](#future-plans)
   - [License](#license)
 <!--toc:end-->
@@ -49,13 +47,50 @@ to expand to other sports and data sources.
 
 ## Features
 
+- **Season parameter support** for historical and current data queries
 - **Flexible configuration** with builder pattern and environment variables
-- **Multiple fetch strategies** (stats-only, news-only, or both)
 - **Comprehensive error handling** with detailed error types
 - **Built-in testing utilities** with mock providers
 - **Extensible architecture** with trait-based providers
 - **Concurrent API calls** for improved performance
 - **Clean API** with intuitive imports and type safety
+
+## Season Support
+
+Query player statistics for different seasons and time periods:
+
+```rust
+use statbook::{StatbookClient, Season, api::players::get_player_stats};
+
+let client = StatbookClient::from_env()?;
+
+// Current regular season
+let current = get_player_stats(&client, "josh-allen", None, &Season::Regular).await?;
+
+// Playoff statistics
+let playoffs = get_player_stats(&client, "josh-allen", None, &Season::Playoffs).await?;
+
+// Specific year range
+let season_2023 = get_player_stats(&client, "josh-allen", Some((2023, 2024)), &Season::Regular).await?;
+
+// Latest available data
+let latest = get_player_stats(&client, "josh-allen", None, &Season::Latest).await?;
+
+println!("Season: {}", current.season); // e.g., "regular" or "2023-2024-playoffs"
+```
+
+**Available Season Types:**
+
+- `Season::Regular` - Regular season games
+- `Season::Playoffs` - Playoff games only  
+- `Season::Current` - Current active season
+- `Season::Latest` - Most recent available data
+- `Season::Upcoming` - Upcoming season data
+
+**Year Range Format:**
+
+- `None` - Uses default season
+- `Some((2023, 2024))` - Specific season range, formatted as "2023-2024-regular"
 
 ## Setup
 
@@ -70,7 +105,7 @@ to expand to other sports and data sources.
 
 ```toml
 [dependencies]
-statbook = "0.1.0"
+statbook = "0.0.3"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -84,35 +119,35 @@ export NEWS_API_KEY="your-newsapi-key"
 ## Quick Start
 
 ```rust
-use statbook::{StatbookClient, FetchStrategy, api::players::get_player_summary};
+use statbook::{StatbookClient, Season, api::players::get_player_summary};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create client from environment variables
     let client = StatbookClient::from_env()?;
 
-    // Fetch player data with concurrent API calls
-    let result = get_player_summary(&client, "josh-allen", 
-        FetchStrategy::Both { fail_on_news_error: false }).await?;
+    // Fetch player summary with concurrent API calls for current season
+    let result = get_player_summary(&client, "josh-allen", None, &Season::Regular).await?;
 
-    let stats = &result.player_stats;
     println!("{} {} - {} #{}", 
-        stats.first_name, 
-        stats.last_name, 
-        stats.primary_position,
-        stats.jersey_number
+        result.first_name, 
+        result.last_name, 
+        result.primary_position,
+        result.jersey_number
     );
-    println!("Team: {} | Games: {}", stats.current_team, stats.games_played);
+    println!("Team: {} | Games: {}", 
+        result.current_team, 
+        result.games_played
+    );
 
-    // Handle news with graceful error handling
-    match result.news_result {
-        Ok(articles) => {
-            println!("Recent News ({} articles):", articles.len());
-            for article in articles.iter().take(2) {
-                println!("  • {}", article.title);
-            }
+    // News is handled gracefully - empty vec if failed
+    if result.news.is_empty() {
+        println!("No news available");
+    } else {
+        println!("Recent News ({} articles):", result.news.len());
+        for article in result.news.iter().take(2) {
+            println!("  • {}", article.title);
         }
-        Err(e) => println!("News unavailable: {}", e),
     }
 
     Ok(())
@@ -167,13 +202,17 @@ let client = StatbookClient::new(config);
 
 ```rust
 use statbook::{
-    StatbookClient, FetchStrategy, NewsQuery,
+    StatbookClient, NewsQuery, Season,
     api::players::{get_player_stats, get_player_news, get_player_summary}
 };
 
 // Get only player statistics (fastest - single API call)
-let stats = get_player_stats(&client, "josh-allen").await?;
-println!("{} plays {} for {}", stats.first_name, stats.primary_position, stats.current_team);
+let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular).await?;
+println!("{} plays {} for {} (Season: {})", 
+    stats.first_name, stats.primary_position, stats.current_team, stats.season);
+
+// Get playoff stats for specific years
+let playoff_stats = get_player_stats(&client, "josh-allen", Some((2023, 2024)), &Season::Playoffs).await?;
 
 // Get only news articles with custom query
 let query = NewsQuery::for_player("josh-allen")
@@ -181,63 +220,50 @@ let query = NewsQuery::for_player("josh-allen")
     .with_date_range("2024-01-01".to_string());
 let news = get_player_news(&client, &query).await?;
 
-// Get both with concurrent fetching (recommended)
-let result = get_player_summary(&client, "josh-allen", 
-    FetchStrategy::Both { fail_on_news_error: false }).await?;
+// Get essential player info with news (concurrent fetching)
+let summary = get_player_summary(&client, "josh-allen", None, &Season::Regular).await?;
 ```
 
 ### Data Types
 
 ```rust
-use statbook::{PlayerSummary, PlayerStats, Article, NewsQuery, FetchStrategy};
+use statbook::{PlayerSummary, PlayerStats, Article, NewsQuery, Season};
 
-// PlayerSummary - Complete player information
-// PlayerStats - Just the statistics
+// PlayerSummary - Essential player information with news
+// PlayerStats - Detailed statistics with season information
 // Article - News article with title, description, content, published_at
 // NewsQuery - Configurable news search parameters
-// FetchStrategy - Control how data is fetched (StatsOnly, NewsOnly, Both)
+// Season - Season type enum (Regular, Playoffs, Current, Latest, Upcoming)
 ```
 
-### Fetch Strategies
+### Function Overview
 
-Choose the right strategy for your use case:
+The library provides three main functions for different use cases:
 
 ```rust
-use statbook::{FetchStrategy, api::players::get_player_summary};
+use statbook::{Season, api::players::{get_player_stats, get_player_news, get_player_summary}};
 
-// Stats only - fastest option (single API call)
-let result = get_player_summary(&client, "josh-allen", FetchStrategy::StatsOnly).await?;
-// Use case: Live scoreboards, quick player lookups
+// Detailed player statistics with season information
+let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular).await?;
+// Returns: PlayerStats with comprehensive player data
 
-// News only - for news aggregation
-let result = get_player_summary(&client, "josh-allen", FetchStrategy::NewsOnly).await?;
-// Use case: Sports news apps, content aggregation
+// News articles with metadata
+let news = get_player_news(&client, &NewsQuery::for_player("josh-allen")).await?;
+// Returns: PlayerNews with articles and query metadata
 
-// Both with graceful degradation (recommended)
-let result = get_player_summary(&client, "josh-allen", 
-    FetchStrategy::Both { fail_on_news_error: false }).await?;
-// Use case: Fantasy apps, comprehensive player profiles
-
-// Both with strict error handling
-let result = get_player_summary(&client, "josh-allen", 
-    FetchStrategy::Both { fail_on_news_error: true }).await?;
-// Use case: Critical applications requiring complete data
+// Essential player info with news (concurrent fetching)
+let summary = get_player_summary(&client, "josh-allen", None, &Season::Regular).await?;
+// Returns: PlayerSummary with key stats and news articles
 ```
-
-**Performance Comparison:**
-
-- `StatsOnly`: ~200ms (1 API call)
-- `NewsOnly`: ~300ms (1 API call)  
-- `Both`: ~400ms (2 concurrent API calls)
 
 ## Error Handling
 
 The library provides comprehensive error types with detailed context:
 
 ```rust
-use statbook::{StatbookClient, StatbookError, api::players::get_player_stats};
+use statbook::{StatbookClient, StatbookError, Season, api::players::get_player_stats};
 
-match get_player_stats(&client, "unknown-player").await {
+match get_player_stats(&client, "unknown-player", None, &Season::Regular).await {
     Ok(stats) => {
         println!("Found: {} {}", stats.first_name, stats.last_name);
     }
@@ -272,19 +298,20 @@ match get_player_stats(&client, "unknown-player").await {
 }
 ```
 
-### Partial Failure Handling
+### Graceful Failure Handling
 
 ```rust
-use statbook::{FetchStrategy, api::players::get_player_summary};
+use statbook::{Season, api::players::get_player_summary};
 
-let result = get_player_summary(&client, "josh-allen", 
-    FetchStrategy::Both { fail_on_news_error: false }).await?;
+let summary = get_player_summary(&client, "josh-allen", None, &Season::Regular).await?;
 
-println!("Player: {} {}", result.player_stats.first_name, result.player_stats.last_name);
+println!("Player: {} {}", summary.first_name, summary.last_name);
 
-match result.news_result {
-    Ok(articles) => println!("Found {} news articles", articles.len()),
-    Err(e) => println!("News failed but stats succeeded: {}", e),
+// News failures are handled gracefully - empty vec if failed
+if summary.news.is_empty() {
+    println!("No news available (may have failed gracefully)");
+} else {
+    println!("Found {} news articles", summary.news.len());
 }
 ```
 
@@ -296,31 +323,43 @@ for both unit and integration testing:
 ### Unit Testing with Mock Providers
 
 ```rust
-use statbook::{create_mock_client, api::players::get_player_stats};
+use statbook::{create_mock_client, Season, api::players::get_player_stats};
 
 #[tokio::test]
 async fn test_player_stats() {
     // Mock client - no real API calls, instant responses
     let client = create_mock_client();
-    let stats = get_player_stats(&client, "josh-allen").await.unwrap();
+    let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular).await.unwrap();
 
     assert_eq!(stats.first_name, "Josh");
     assert_eq!(stats.last_name, "Allen");
     assert_eq!(stats.primary_position, "QB");
     assert_eq!(stats.current_team, "BUF");
+    assert_eq!(stats.season, "regular");
 }
 
 #[tokio::test]
-async fn test_fetch_strategies() {
+async fn test_player_functions() {
     let client = create_mock_client();
 
-    // Test different strategies
-    let stats_only = get_player_summary(&client, "josh-allen", FetchStrategy::StatsOnly).await.unwrap();
-    let both = get_player_summary(&client, "josh-allen", 
-        FetchStrategy::Both { fail_on_news_error: false }).await.unwrap();
+    // Test different functions
+    let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular).await.unwrap();
+    let summary = get_player_summary(&client, "josh-allen", None, &Season::Regular).await.unwrap();
 
-    assert_eq!(stats_only.player_stats.first_name, both.player_stats.first_name);
-    assert!(both.news_result.is_ok());
+    assert_eq!(stats.first_name, summary.first_name);
+    assert!(!summary.news.is_empty());
+}
+
+#[tokio::test]
+async fn test_season_parameters() {
+    let client = create_mock_client();
+
+    // Test different seasons
+    let regular = get_player_stats(&client, "josh-allen", None, &Season::Regular).await.unwrap();
+    let playoffs = get_player_stats(&client, "josh-allen", None, &Season::Playoffs).await.unwrap();
+    
+    assert_eq!(regular.season, "regular");
+    assert_eq!(playoffs.season, "playoffs");
 }
 ```
 
@@ -335,7 +374,13 @@ async fn test_custom_data() {
     mock_stats.add_player_stats("custom-player", PlayerStats {
         first_name: "Custom".to_string(),
         last_name: "Player".to_string(),
-        // ... other fields
+        primary_position: "QB".to_string(),
+        jersey_number: 1,
+        current_team: "CUSTOM".to_string(),
+        injury: String::new(),
+        rookie: false,
+        games_played: 16,
+        season: "2024-regular".to_string(),
     });
 
     let client = create_custom_mock_client(mock_stats, MockNewsProvider::new());
@@ -360,7 +405,7 @@ async fn test_real_api() {
     };
     
     // Test with real API calls
-    let stats = get_player_stats(&client, "josh-allen").await.unwrap();
+    let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular).await.unwrap();
     assert!(!stats.first_name.is_empty());
     assert_eq!(stats.first_name, "Josh");
 }
@@ -386,7 +431,7 @@ cargo test test_player_stats
 Implement your own data sources:
 
 ```rust
-use statbook::{StatsProvider, NewsProvider, PlayerStats, Article, NewsQuery, Result, StatbookClient};
+use statbook::{StatsProvider, NewsProvider, PlayerStats, PlayerNews, Article, NewsQuery, Result, StatbookClient};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -394,7 +439,7 @@ struct MyCustomStatsProvider;
 
 #[async_trait]
 impl StatsProvider for MyCustomStatsProvider {
-    async fn fetch_player_stats(&self, name: &str) -> Result<PlayerStats> {
+    async fn fetch_player_stats(&self, name: &str, season: &str) -> Result<PlayerStats> {
         // Your custom implementation - fetch from your own API, database, etc.
         Ok(PlayerStats {
             first_name: "Custom".to_string(),
@@ -405,6 +450,7 @@ impl StatsProvider for MyCustomStatsProvider {
             injury: String::new(),
             rookie: false,
             games_played: 16,
+            season: season.to_string(),
         })
     }
 }
@@ -413,14 +459,15 @@ struct MyCustomNewsProvider;
 
 #[async_trait]
 impl NewsProvider for MyCustomNewsProvider {
-    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<Vec<Article>> {
+    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<PlayerNews> {
         // Your custom news implementation
-        Ok(vec![Article {
+        let articles = vec![Article {
             title: format!("Custom news about {}", query.player_name),
             description: "Custom news description".to_string(),
             published_at: "2024-01-01T00:00:00Z".to_string(),
             content: "Custom news content".to_string(),
-        }])
+        }];
+        Ok(PlayerNews::new(articles, query.clone()))
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{error::StatbookError, models::news::Article};
+use crate::models::news::Article;
 
 /// Player statistics without news articles.
 ///
@@ -24,17 +24,30 @@ pub struct PlayerStats {
     pub rookie: bool,
     /// Total games played this season
     pub games_played: u64,
+    /// Season for which these stats apply
+    pub season: String,
 }
 
-/// Result of fetching both player stats and news with partial failure support.
+/// Quick summary of essential player information with news.
 ///
-/// This struct allows for graceful handling of scenarios where player
-/// statistics are successfully retrieved but news fetching fails.
+/// This struct contains only the most important player details
+/// for summary/overview purposes. Use `get_player_stats()` for
+/// complete statistical information including injury status and rookie info.
 
-#[derive(Debug)]
-pub struct PlayerSummaryResult {
-    /// Player statistics (always present if this struct exists)
-    pub player_stats: PlayerStats,
-    /// News articles result (may be an error if news fetching failed)
-    pub news_result: Result<Vec<Article>, StatbookError>,
+#[derive(Debug, Clone)]
+pub struct PlayerSummary {
+    /// Player's first name
+    pub first_name: String,
+    /// Player's last name
+    pub last_name: String,
+    /// Primary playing position
+    pub primary_position: String,
+    /// Current team name
+    pub current_team: String,
+    /// Jersey number
+    pub jersey_number: u32,
+    /// Total games played this season
+    pub games_played: u64,
+    /// Related news articles
+    pub news: Vec<Article>,
 }

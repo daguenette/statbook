@@ -27,7 +27,7 @@
 //!
 //! ```rust,no_run
 //! use statbook::{
-//!     StatbookClient, FetchStrategy, NewsQuery,
+//!     StatbookClient, NewsQuery, Season,
 //!     api::players::{get_player_stats, get_player_news, get_player_summary}
 //! };
 //!
@@ -36,15 +36,14 @@
 //! let client = StatbookClient::from_env()?;
 //!
 //! // Get only player statistics (faster)
-//! let stats = get_player_stats(&client, "josh-allen").await?;
+//! let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular).await?;
 //!
 //! // Get only news articles
 //! let query = NewsQuery::for_player("josh-allen").with_page_size(10);
 //! let news = get_player_news(&client, &query).await?;
 //!
-//! // Get both with concurrent fetching and partial failure handling
-//! let result = get_player_summary(&client, "josh-allen",
-//!     FetchStrategy::Both { fail_on_news_error: false }).await?;
+//! // Get essential player info with news (always fetches both)
+//! let summary = get_player_summary(&client, "josh-allen", None, &Season::Regular).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -76,13 +75,13 @@
 //! ### Error Handling
 //!
 //! ```rust,no_run
-//! use statbook::{StatbookClient, StatbookError, api::players::get_player_stats};
+//! use statbook::{StatbookClient, StatbookError, Season, api::players::get_player_stats};
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = StatbookClient::from_env()?;
 //!
-//! match get_player_stats(&client, "unknown-player").await {
+//! match get_player_stats(&client, "unknown-player", None, &Season::Regular).await {
 //!     Ok(stats) => println!("Found: {} {}", stats.first_name, stats.last_name),
 //!     Err(StatbookError::PlayerNotFound { name }) => {
 //!         println!("No player named '{}'", name);
@@ -101,12 +100,12 @@
 //! The library provides built-in testing utilities:
 //!
 //! ```rust
-//! use statbook::{create_mock_client, api::players::get_player_stats};
+//! use statbook::{create_mock_client, Season, api::players::get_player_stats};
 //!
 //! #[tokio::test]
 //! async fn test_my_app() {
 //!     let client = create_mock_client();  // No real API calls
-//!     let stats = get_player_stats(&client, "josh-allen").await.unwrap();
+//!     let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular).await.unwrap();
 //!     assert_eq!(stats.first_name, "Josh");
 //! }
 //! ```
@@ -125,7 +124,7 @@ mod utils;
 pub use client::StatbookClient;
 pub use config::{NewsConfig, SortBy, StatbookConfig};
 pub use error::{Result, StatbookError};
-pub use models::{Article, FetchStrategy, NewsQuery, PlayerStats, PlayerSummaryResult};
+pub use models::{Article, NewsQuery, PlayerNews, PlayerStats, PlayerSummary, Season};
 pub use providers::{MockNewsProvider, MockStatsProvider, NewsProvider, StatsProvider};
 
 // Re-export test utilities directly
