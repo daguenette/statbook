@@ -44,7 +44,6 @@ impl NewsQuery {
     /// # Arguments
     ///
     /// * `name` - The player name to search for
-
     pub fn for_player(name: &str) -> Self {
         Self {
             player_name: name.to_string(),
@@ -59,7 +58,6 @@ impl NewsQuery {
     /// # Arguments
     ///
     /// * `size` - Maximum number of articles (typically 1-100)
-
     pub fn with_page_size(mut self, size: u32) -> Self {
         self.page_size = size;
         self
@@ -73,7 +71,6 @@ impl NewsQuery {
     /// # Arguments
     ///
     /// * `from_date` - Start date in YYYY-MM-DD format
-
     pub fn with_date_range(mut self, from_date: String) -> Self {
         self.from_date = from_date;
         self
