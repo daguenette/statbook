@@ -129,7 +129,9 @@ mod tests {
         let client = create_mock_client();
 
         // Test stats provider
-        let stats = get_player_stats(&client, "josh-allen", None, &crate::models::Season::Regular).await.unwrap();
+        let stats = get_player_stats(&client, "josh-allen", None, &crate::models::Season::Regular)
+            .await
+            .unwrap();
         assert_eq!(stats.first_name, "Josh");
 
         // Test news provider
