@@ -125,9 +125,7 @@ mod utils;
 pub use client::StatbookClient;
 pub use config::{NewsConfig, SortBy, StatbookConfig};
 pub use error::{Result, StatbookError};
-pub use models::{
-    Article, FetchStrategy, NewsQuery, PlayerStats, PlayerSummary, PlayerSummaryResult,
-};
+pub use models::{Article, FetchStrategy, NewsQuery, PlayerStats, PlayerSummaryResult};
 pub use providers::{MockNewsProvider, MockStatsProvider, NewsProvider, StatsProvider};
 
 // Re-export test utilities directly

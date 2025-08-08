@@ -1,7 +1,7 @@
 use crate::{
     config::StatbookConfig,
     error::{Result, StatbookError},
-    models::{player_parser::PlayerResponse, PlayerStats},
+    models::{parsers::player_parser::PlayerResponse, PlayerStats},
 };
 use async_trait::async_trait;
 use base64::{engine::general_purpose, Engine as _};
@@ -13,23 +13,6 @@ const STATBOOK_PASSWORD: &str = "MYSPORTSFEEDS";
 /// This trait abstracts the statistics fetching logic, allowing for
 /// different implementations (real APIs, mock data, cached data, etc.).
 /// The trait is designed to be thread-safe and async-compatible.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{StatsProvider, PlayerStats, Result};
-/// use async_trait::async_trait;
-///
-/// struct CustomStatsProvider;
-///
-/// #[async_trait]
-/// impl StatsProvider for CustomStatsProvider {
-///     async fn fetch_player_stats(&self, name: &str) -> Result<PlayerStats> {
-///         // Custom implementation
-///         todo!()
-///     }
-/// }
-/// ```
 #[async_trait]
 pub trait StatsProvider: Send + Sync {
     /// Fetches player statistics by name.
@@ -63,20 +46,6 @@ pub trait StatsProvider: Send + Sync {
 ///
 /// MySports API uses HTTP Basic Authentication with the API key as
 /// username and a fixed password.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{StatbookClient, api::players::get_player_stats};
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let client = StatbookClient::from_env()?;
-/// let stats = get_player_stats(&client, "josh-allen").await?;
-///
-/// println!("{} plays for {}", stats.first_name, stats.current_team);
-/// # Ok(())
-/// # }
-/// ```
 pub struct MySportsStatsProvider {
     config: StatbookConfig,
     http_client: reqwest::Client,
@@ -88,22 +57,6 @@ impl MySportsStatsProvider {
     /// # Arguments
     ///
     /// * `config` - Configuration containing the MySports API key and base URL
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::{StatbookClient, StatbookConfig};
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = StatbookConfig::builder()
-    ///     .stats_api_key("your-api-key")
-    ///     .news_api_key("your-news-key")
-    ///     .build()?;
-    ///
-    /// let client = StatbookClient::new(config);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn new(config: StatbookConfig) -> Self {
         Self {
             config,

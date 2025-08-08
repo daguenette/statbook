@@ -77,7 +77,7 @@ mod tests {
             Some(client) => {
                 println!("Integration test running with real API credentials");
                 // Actually test the APIs
-                match get_player_stats(&client, "josh-allen").await {
+                match get_player_stats(&client, "Tom Brady").await {
                     Ok(stats) => {
                         println!(
                             "Stats API working: {} {}",

@@ -1,8 +1,9 @@
-pub(crate) mod news_parser;
+mod fetch;
+mod news;
 mod player;
-pub(crate) mod player_parser;
-mod result_types;
+pub(crate) mod parsers;
 
 // Re-export public types
-pub use player::{Article, PlayerSummary};
-pub use result_types::{FetchStrategy, NewsQuery, PlayerStats, PlayerSummaryResult};
+pub use fetch::FetchStrategy;
+pub use news::{Article, NewsQuery};
+pub use player::{PlayerStats, PlayerSummaryResult};
