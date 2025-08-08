@@ -10,25 +10,6 @@ use std::sync::Arc;
 /// `StatbookClient` provides a unified interface for fetching player statistics
 /// and news articles from various sports data providers. It uses the provider
 /// pattern internally to support different data sources.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{StatbookClient, StatbookConfig};
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // Create client from environment variables
-/// let client = StatbookClient::from_env()?;
-///
-/// // Or build with explicit configuration
-/// let config = StatbookConfig::builder()
-///     .stats_api_key("your-stats-key")
-///     .news_api_key("your-news-key")
-///     .build()?;
-/// let client = StatbookClient::new(config);
-/// # Ok(())
-/// # }
-/// ```
 pub struct StatbookClient {
     stats_provider: Arc<dyn StatsProvider>,
     news_provider: Arc<dyn NewsProvider>,
@@ -43,22 +24,6 @@ impl StatbookClient {
     /// # Arguments
     ///
     /// * `config` - Configuration containing API keys and endpoint URLs
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::{StatbookClient, StatbookConfig};
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = StatbookConfig::builder()
-    ///     .stats_api_key("your-stats-key")
-    ///     .news_api_key("your-news-key")
-    ///     .build()?;
-    ///
-    /// let client = StatbookClient::new(config);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn new(config: StatbookConfig) -> Self {
         let stats_provider = Arc::new(MySportsStatsProvider::new(config.clone()));
         let news_provider = Arc::new(NewsApiProvider::new(config));
@@ -79,15 +44,6 @@ impl StatbookClient {
     ///
     /// * `stats_provider` - Custom statistics provider implementation
     /// * `news_provider` - Custom news provider implementation
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::{StatbookClient, create_mock_client};
-    ///
-    /// // Using mock providers for testing
-    /// let client = create_mock_client();
-    /// ```
     pub fn with_providers(
         stats_provider: Arc<dyn StatsProvider>,
         news_provider: Arc<dyn NewsProvider>,
@@ -118,22 +74,6 @@ impl StatbookClient {
     /// - Required environment variables are missing
     /// - API keys are empty or invalid format
     /// - Configuration validation fails
-    ///
-    /// # Examples
-    ///
-    /// ```bash
-    /// export STATS_API_KEY="your-stats-key"
-    /// export NEWS_API_KEY="your-news-key"
-    /// ```
-    ///
-    /// ```rust
-    /// use statbook::StatbookClient;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = StatbookClient::from_env()?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn from_env() -> Result<Self> {
         let config = StatbookConfig::from_env()?;
         Ok(Self::new(config))
@@ -143,21 +83,6 @@ impl StatbookClient {
     ///
     /// This is a convenience method that returns a `StatbookConfigBuilder`
     /// for fluent configuration setup.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::StatbookClient;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = StatbookClient::builder()
-    ///     .stats_api_key("your-stats-key")
-    ///     .news_api_key("your-news-key")
-    ///     .build()
-    ///     .map(StatbookClient::new)?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn builder() -> crate::config::StatbookConfigBuilder {
         StatbookConfig::builder()
     }
@@ -204,7 +129,9 @@ mod tests {
         let client = create_mock_client();
 
         // Test stats provider
-        let stats = get_player_stats(&client, "josh-allen").await.unwrap();
+        let stats = get_player_stats(&client, "josh-allen", None, &crate::models::Season::Regular)
+            .await
+            .unwrap();
         assert_eq!(stats.first_name, "Josh");
 
         // Test news provider

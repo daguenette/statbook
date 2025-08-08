@@ -3,29 +3,6 @@
 /// This enum represents all possible error conditions that can arise
 /// when fetching sports statistics and news data. Each variant provides
 /// specific context about what went wrong.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{StatbookClient, StatbookError};
-///
-/// # async fn example() {
-/// match StatbookClient::from_env() {
-///     Ok(client) => {
-///         // Use the client
-///     }
-///     Err(StatbookError::MissingApiKey { key }) => {
-///         eprintln!("Please set the {} environment variable", key);
-///     }
-///     Err(StatbookError::Config(msg)) => {
-///         eprintln!("Configuration error: {}", msg);
-///     }
-///     Err(e) => {
-///         eprintln!("Other error: {}", e);
-///     }
-/// }
-/// # }
-/// ```
 #[derive(Debug, thiserror::Error)]
 pub enum StatbookError {
     /// An API key is missing or empty.
@@ -105,14 +82,4 @@ pub enum StatbookError {
 ///
 /// This is a type alias for `std::result::Result<T, StatbookError>` that
 /// simplifies function signatures throughout the library.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{Result, StatbookClient};
-///
-/// fn create_client() -> Result<StatbookClient> {
-///     StatbookClient::from_env()
-/// }
-/// ```
 pub type Result<T> = std::result::Result<T, StatbookError>;

@@ -1,7 +1,7 @@
 use crate::{
     config::StatbookConfig,
     error::{Result, StatbookError},
-    models::{news_parser::NewsResponse, Article, NewsQuery},
+    models::{parsers::news_parser::NewsResponse, Article, NewsQuery, PlayerNews},
 };
 use async_trait::async_trait;
 
@@ -10,23 +10,6 @@ use async_trait::async_trait;
 /// This trait abstracts the news fetching logic, allowing for different
 /// implementations (real APIs, mock data, cached data, etc.). The trait
 /// is designed to be thread-safe and async-compatible.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{NewsProvider, Article, NewsQuery, Result};
-/// use async_trait::async_trait;
-///
-/// struct CustomNewsProvider;
-///
-/// #[async_trait]
-/// impl NewsProvider for CustomNewsProvider {
-///     async fn fetch_player_news(&self, query: &NewsQuery) -> Result<Vec<Article>> {
-///         // Custom implementation
-///         todo!()
-///     }
-/// }
-/// ```
 #[async_trait]
 pub trait NewsProvider: Send + Sync {
     /// Fetches news articles based on the provided query.
@@ -37,7 +20,7 @@ pub trait NewsProvider: Send + Sync {
     ///
     /// # Returns
     ///
-    /// Returns `Ok(Vec<Article>)` containing matching news articles,
+    /// Returns `Ok(PlayerNews)` containing matching news articles,
     /// or an error if the request fails.
     ///
     /// # Errors
@@ -46,7 +29,7 @@ pub trait NewsProvider: Send + Sync {
     /// - Network request fails
     /// - API returns an error response (e.g., invalid API key, rate limit)
     /// - Response parsing fails
-    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<Vec<Article>>;
+    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<PlayerNews>;
 }
 
 /// NewsAPI implementation of the `NewsProvider` trait.
@@ -65,23 +48,6 @@ pub trait NewsProvider: Send + Sync {
 ///
 /// NewsAPI has rate limits that vary by subscription tier. The free tier
 /// allows 1,000 requests per day.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{StatbookClient, NewsQuery, api::players::get_player_news};
-///
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let client = StatbookClient::from_env()?;
-/// let query = NewsQuery::for_player("LeBron James");
-/// let articles = get_player_news(&client, &query).await?;
-///
-/// for article in articles {
-///     println!("Title: {}", article.title);
-/// }
-/// # Ok(())
-/// # }
-/// ```
 pub struct NewsApiProvider {
     config: StatbookConfig,
     http_client: reqwest::Client,
@@ -93,22 +59,6 @@ impl NewsApiProvider {
     /// # Arguments
     ///
     /// * `config` - Configuration containing the NewsAPI key and base URL
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::{StatbookClient, StatbookConfig};
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = StatbookConfig::builder()
-    ///     .stats_api_key("your-stats-key")
-    ///     .news_api_key("your-news-key")
-    ///     .build()?;
-    ///
-    /// let client = StatbookClient::new(config);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn new(config: StatbookConfig) -> Self {
         Self {
             config,
@@ -119,7 +69,7 @@ impl NewsApiProvider {
 
 #[async_trait]
 impl NewsProvider for NewsApiProvider {
-    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<Vec<Article>> {
+    async fn fetch_player_news(&self, query: &NewsQuery) -> Result<PlayerNews> {
         let url = format!("{}/everything", self.config.news_base_url);
 
         // Build query parameters, only including 'from' if it's not empty
@@ -166,6 +116,7 @@ impl NewsProvider for NewsApiProvider {
             })
             .collect();
 
-        Ok(articles)
+        Ok(PlayerNews::new(articles, query.clone())
+            .with_total_count(news_data.total_results as u32))
     }
 }

@@ -1,92 +1,66 @@
 use crate::{
     client::StatbookClient,
     error::Result,
-    models::{Article, FetchStrategy, NewsQuery, PlayerStats, PlayerSummaryResult},
+    models::{NewsQuery, PlayerNews, PlayerStats, PlayerSummary, Season},
     utils::to_dash_case,
 };
 
-pub async fn get_player_stats(client: &StatbookClient, name: &str) -> Result<PlayerStats> {
+pub async fn get_player_stats(
+    client: &StatbookClient,
+    name: &str,
+    year_range: Option<(i64, i64)>,
+    season: &Season,
+) -> Result<PlayerStats> {
     let dash_name = to_dash_case(name);
-    client.stats_provider().fetch_player_stats(&dash_name).await
+
+    let season_param: String = match year_range {
+        Some((start, end)) => season.format_with_years(start, end),
+        None => season.as_str().to_string(),
+    };
+
+    client
+        .stats_provider()
+        .fetch_player_stats(&dash_name, &season_param)
+        .await
 }
 
-pub async fn get_player_news(client: &StatbookClient, query: &NewsQuery) -> Result<Vec<Article>> {
+pub async fn get_player_news(client: &StatbookClient, query: &NewsQuery) -> Result<PlayerNews> {
     client.news_provider().fetch_player_news(query).await
 }
 
-/// Fetch player summary with configurable strategy
 pub async fn get_player_summary(
     client: &StatbookClient,
     name: &str,
-    strategy: FetchStrategy,
-) -> Result<PlayerSummaryResult> {
-    let dash_name = to_dash_case(name);
-
-    match strategy {
-        FetchStrategy::StatsOnly => {
-            let stats = client
-                .stats_provider()
-                .fetch_player_stats(&dash_name)
-                .await?;
-            Ok(PlayerSummaryResult {
-                player_stats: stats,
-                news_result: Ok(vec![]),
-            })
-        }
-        FetchStrategy::NewsOnly => {
-            let query = NewsQuery::for_player(&dash_name);
-            let news = client.news_provider().fetch_player_news(&query).await?;
-            // Return empty stats for news-only requests
-            Ok(PlayerSummaryResult {
-                player_stats: PlayerStats {
-                    first_name: String::new(),
-                    last_name: String::new(),
-                    primary_position: String::new(),
-                    jersey_number: 0,
-                    current_team: String::new(),
-                    injury: String::new(),
-                    rookie: false,
-                    games_played: 0,
-                },
-                news_result: Ok(news),
-            })
-        }
-        FetchStrategy::Both { fail_on_news_error } => {
-            get_player_summary_concurrent(client, &dash_name, fail_on_news_error).await
-        }
-    }
-}
-
-/// Fetch player summary with concurrent API calls
-pub async fn get_player_summary_concurrent(
-    client: &StatbookClient,
-    name: &str,
-    fail_on_news_error: bool,
-) -> Result<PlayerSummaryResult> {
+    year_range: Option<(i64, i64)>,
+    season: &Season,
+) -> Result<PlayerSummary> {
     let dash_name = to_dash_case(name);
     let query = NewsQuery::for_player(&dash_name);
+    let season_param: String = match year_range {
+        Some((start, end)) => season.format_with_years(start, end),
+        None => season.as_str().to_string(),
+    };
 
     let (stats_result, news_result) = tokio::join!(
-        client.stats_provider().fetch_player_stats(&dash_name),
+        client
+            .stats_provider()
+            .fetch_player_stats(&dash_name, &season_param),
         client.news_provider().fetch_player_news(&query)
     );
 
     let stats = stats_result?;
+    let news = news_result.map(|n| n.articles).unwrap_or_default();
 
-    if fail_on_news_error {
-        let news = news_result?;
-        Ok(PlayerSummaryResult {
-            player_stats: stats,
-            news_result: Ok(news),
-        })
-    } else {
-        Ok(PlayerSummaryResult {
-            player_stats: stats,
-            news_result,
-        })
-    }
+    Ok(PlayerSummary {
+        first_name: stats.first_name,
+        last_name: stats.last_name,
+        primary_position: stats.primary_position,
+        current_team: stats.current_team,
+        jersey_number: stats.jersey_number,
+        games_played: stats.games_played,
+        news,
+    })
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,13 +69,16 @@ mod tests {
     #[tokio::test]
     async fn test_get_player_stats_mock() {
         let client = create_mock_client();
-        let stats = get_player_stats(&client, "josh-allen").await.unwrap();
+        let stats = get_player_stats(&client, "josh-allen", None, &Season::Regular)
+            .await
+            .unwrap();
 
         assert_eq!(stats.first_name, "Josh");
         assert_eq!(stats.last_name, "Allen");
         assert_eq!(stats.primary_position, "QB");
         assert_eq!(stats.jersey_number, 17);
         assert_eq!(stats.current_team, "BUF");
+        assert_eq!(stats.season, "regular");
     }
 
     #[tokio::test]
@@ -111,46 +88,68 @@ mod tests {
         let news = get_player_news(&client, &query).await.unwrap();
 
         assert!(!news.is_empty());
-        assert!(news[0].title.contains("Josh Allen"));
+        assert!(news.articles[0].title.contains("Josh Allen"));
     }
 
     #[tokio::test]
-    async fn test_get_player_summary_concurrent_mock() {
+    async fn test_get_player_summary_mock() {
         let client = create_mock_client();
-        let result = get_player_summary_concurrent(&client, "josh-allen", false)
+        let result = get_player_summary(&client, "josh-allen", None, &Season::Regular)
             .await
             .unwrap();
 
-        assert_eq!(result.player_stats.first_name, "Josh");
-        assert_eq!(result.player_stats.last_name, "Allen");
-        assert!(result.news_result.is_ok());
-
-        let news = result.news_result.unwrap();
-        assert!(!news.is_empty());
+        assert_eq!(result.first_name, "Josh");
+        assert_eq!(result.last_name, "Allen");
+        assert!(!result.news.is_empty());
     }
 
     #[tokio::test]
-    async fn test_get_player_summary_strategies_mock() {
+    async fn test_get_player_summary_with_news_mock() {
         let client = create_mock_client();
 
-        // Test stats only
-        let stats_only = get_player_summary(&client, "josh-allen", FetchStrategy::StatsOnly)
+        // Test that summary always fetches both stats and news
+        let summary = get_player_summary(&client, "josh-allen", None, &Season::Regular)
             .await
             .unwrap();
-        assert_eq!(stats_only.player_stats.first_name, "Josh");
-        assert!(stats_only.news_result.unwrap().is_empty());
 
-        // Test both with no failure on news error
-        let both = get_player_summary(
-            &client,
-            "josh-allen",
-            FetchStrategy::Both {
-                fail_on_news_error: false,
-            },
-        )
-        .await
-        .unwrap();
-        assert_eq!(both.player_stats.first_name, "Josh");
-        assert!(both.news_result.is_ok());
+        // Should have player info
+        assert_eq!(summary.first_name, "Josh");
+        assert_eq!(summary.last_name, "Allen");
+        assert_eq!(summary.primary_position, "QB");
+        assert_eq!(summary.current_team, "BUF");
+
+        // Should have news articles
+        assert!(!summary.news.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_season_parameter_integration() {
+        let client = create_mock_client();
+
+        // Test different seasons
+        let regular_stats = get_player_stats(&client, "josh-allen", None, &Season::Regular)
+            .await
+            .unwrap();
+        assert_eq!(regular_stats.season, "regular");
+
+        let playoff_stats = get_player_stats(&client, "josh-allen", None, &Season::Playoffs)
+            .await
+            .unwrap();
+        assert_eq!(playoff_stats.season, "playoff");
+
+        // Test with year range
+        let stats_with_years =
+            get_player_stats(&client, "josh-allen", Some((2023, 2024)), &Season::Regular)
+                .await
+                .unwrap();
+        assert_eq!(stats_with_years.season, "2023-2024-regular");
+
+        // Test summary with season
+        let summary =
+            get_player_summary(&client, "josh-allen", Some((2023, 2024)), &Season::Playoffs)
+                .await
+                .unwrap();
+        assert_eq!(summary.first_name, "Josh");
+        assert_eq!(summary.last_name, "Allen");
     }
 }

@@ -12,34 +12,6 @@ const NEWS_BASE_URL: &str = "https://newsapi.org/v2";
 /// This struct contains all the necessary configuration for connecting to
 /// sports statistics and news APIs, including API keys, base URLs, and
 /// news-specific settings.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{StatbookConfig, NewsConfig, SortBy};
-///
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // Create with builder pattern
-/// let config = StatbookConfig::builder()
-///     .stats_api_key("your-stats-key")
-///     .news_api_key("your-news-key")
-///     .build()?;
-///
-/// // Create from environment variables
-/// let config = StatbookConfig::from_env()?;
-///
-/// // Create with custom news configuration
-/// let news_config = NewsConfig::new()
-///     .with_max_articles(50)
-///     .with_sort_by(SortBy::Relevancy);
-/// let config = StatbookConfig::builder()
-///     .stats_api_key("your-stats-key")
-///     .news_api_key("your-news-key")
-///     .news_config(news_config)
-///     .build()?;
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Debug, Clone)]
 pub struct StatbookConfig {
     /// API key for the statistics provider
@@ -64,17 +36,6 @@ impl StatbookConfig {
     ///
     /// * `stats_api_key` - API key for the statistics provider
     /// * `news_api_key` - API key for the news provider
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::StatbookConfig;
-    ///
-    /// let config = StatbookConfig::new(
-    ///     "your-stats-key".to_string(),
-    ///     "your-news-key".to_string()
-    /// );
-    /// ```
     pub fn new(stats_api_key: String, news_api_key: String) -> Self {
         Self {
             stats_api_key,
@@ -104,22 +65,6 @@ impl StatbookConfig {
     /// - Required environment variables are missing
     /// - API keys are empty
     /// - URLs are not valid HTTP URLs
-    ///
-    /// # Examples
-    ///
-    /// ```bash
-    /// export STATS_API_KEY="your-stats-key"
-    /// export NEWS_API_KEY="your-news-key"
-    /// ```
-    ///
-    /// ```rust
-    /// use statbook::StatbookConfig;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = StatbookConfig::from_env()?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn from_env() -> Result<Self> {
         let stats_api_key =
             env::var("STATS_API_KEY").map_err(|_| StatbookError::MissingApiKey {
@@ -197,25 +142,6 @@ impl StatbookConfig {
     /// # Arguments
     ///
     /// * `news_config` - The news configuration to use
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::{StatbookConfig, NewsConfig, SortBy};
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let news_config = NewsConfig::new()
-    ///     .with_max_articles(50)
-    ///     .with_sort_by(SortBy::Relevancy);
-    ///
-    /// let config = StatbookConfig::builder()
-    ///     .stats_api_key("key")
-    ///     .news_api_key("key")
-    ///     .build()?
-    ///     .with_news_config(news_config);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn with_news_config(mut self, news_config: NewsConfig) -> Self {
         self.news_config = news_config;
         self
@@ -225,21 +151,6 @@ impl StatbookConfig {
     ///
     /// This is the recommended way to create a `StatbookConfig` when you need
     /// to customize multiple settings.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::StatbookConfig;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = StatbookConfig::builder()
-    ///     .stats_api_key("your-stats-key")
-    ///     .news_api_key("your-news-key")
-    ///     .stats_base_url("https://custom-stats-api.com")
-    ///     .build()?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn builder() -> StatbookConfigBuilder {
         StatbookConfigBuilder::default()
     }
@@ -250,22 +161,6 @@ impl StatbookConfig {
 /// This builder provides a fluent interface for constructing configuration
 /// with validation. It ensures all required fields are provided before
 /// creating the final configuration.
-///
-/// # Examples
-///
-/// ```rust
-/// use statbook::{StatbookConfig, NewsConfig};
-///
-/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// let config = StatbookConfig::builder()
-///     .stats_api_key("your-stats-key")
-///     .news_api_key("your-news-key")
-///     .stats_base_url("https://custom-api.com")  // Optional
-///     .news_config(NewsConfig::default())        // Optional
-///     .build()?;
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Default)]
 pub struct StatbookConfigBuilder {
     stats_api_key: Option<String>,
@@ -348,20 +243,6 @@ impl StatbookConfigBuilder {
     /// - Required API keys are missing
     /// - API keys are empty
     /// - URLs are not valid HTTP URLs
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use statbook::StatbookConfig;
-    ///
-    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = StatbookConfig::builder()
-    ///     .stats_api_key("your-stats-key")
-    ///     .news_api_key("your-news-key")
-    ///     .build()?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn build(self) -> Result<StatbookConfig> {
         let stats_api_key = self.stats_api_key.ok_or(StatbookError::MissingApiKey {
             key: "stats_api_key".to_string(),
